@@ -1,11 +1,12 @@
 import os
 import sys
-# from PIL import Image
+
+import numpy as np
 from PIL import ImageFile
-ImageFile.LOAD_TRUNCATED_IMAGES = True
 from skimage import io
 from skimage.transform import resize
-import numpy as np
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def create_directory(directory):
@@ -40,7 +41,7 @@ def crop_and_resize_images(path, new_path, cropx, cropy, img_size=256):
 
     for item in dirs:
         img = io.imread(path+item)
-        y,x,channel = img.shape
+        y, x, _ = img.shape
         startx = x//2-(cropx//2)
         starty = y//2-(cropy//2)
         img = img[starty:starty+cropy,startx:startx+cropx]
