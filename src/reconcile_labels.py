@@ -1,6 +1,10 @@
 import os
 
+import numpy as np
 import pandas as pd
+
+from imblearn.under_sampling import RandomUnderSampler
+from imblearn.over_sampling import RandomOverSampler
 
 
 def get_lst_images(file_path):
@@ -17,28 +21,24 @@ def get_lst_images(file_path):
 
 
 if __name__ == '__main__':
-    trainLabels = pd.read_csv("../labels/trainLabels_master.csv")
+    df_train_labels = pd.read_csv("../labels/trainLabels_master.csv")
 
-    lst_imgs = get_lst_images('../data/train-resized-256/')
+    X = np.array(df_train_labels.index).reshape(-1,1)
+    Y = df_train_labels["level"].values
+    
+    """
+    Correct class imbalance, under sampling
+    """
+    sample = RandomUnderSampler()
+    X_resampled, Y_resampled = sample.fit_sample(X, Y)
 
-    new_trainLabels = pd.DataFrame({'image': lst_imgs})
-    new_trainLabels['image2'] = new_trainLabels.image
+    df_resampled = pd.DataFrame()
+    df_resampled["image_idx"] = X_resampled[:,0]
+    df_resampled["level"] = Y_resampled
 
-    # Remove the suffix from the image names.
-    new_trainLabels['image2'] = new_trainLabels.loc[:, 'image2'].apply(lambda x: '_'.join(x.split('_')[0:2]))
+    df = df_train_labels[df_train_labels.index.isin(df_resampled.image_idx)]
 
-    # Strip and add .jpeg back into file name
-    new_trainLabels['image2'] = new_trainLabels.loc[:, 'image2'].apply(
-        lambda x: '_'.join(x.split('_')[0:2]).strip('.jpeg') + '.jpeg')
+    df = df.reset_index(drop=True)
 
-    # trainLabels = trainLabels[0:10]
-    new_trainLabels.columns = ['train_image_name', 'image']
+    df.to_csv("trainLabels_DEV.csv", index=False, header=True)
 
-    trainLabels = pd.merge(trainLabels, new_trainLabels, how='outer', on='image')
-    trainLabels.drop(['black'], axis=1, inplace=True)
-    # print(trainLabels.head(100))
-    trainLabels = trainLabels.dropna()
-    print(trainLabels.shape)
-
-    print("Writing CSV")
-    trainLabels.to_csv('../labels/trainLabels_master_256_v2.csv', index=False, header=True)
