@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
     trainLabels['black'] = preprocess.find_black_images('../data/train-resized-256/', trainLabels)
     trainLabels = trainLabels.loc[trainLabels['black'] == 0]
-    trainLabels.to_csv('trainLabels_master_DEV.csv', index=False, header=True)
+    trainLabels.to_csv('trainLabels_master.csv', index=False, header=True)
 
     print("Completed")
     print("--- %s seconds ---" % (time.time() - start_time))
