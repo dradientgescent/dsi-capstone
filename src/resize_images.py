@@ -36,7 +36,7 @@ def crop_and_resize_images(path, new_path, cropx, cropy, img_size=256):
         All images cropped, resized, and saved from the old folder to the new folder.
     '''
     create_directory(new_path)
-    dirs = [l for l in os.listdir(path) if l != '.DS_Store']
+    dirs = [l for l in os.listdir(path)]
     total = 0
 
     for item in dirs:
@@ -53,4 +53,4 @@ def crop_and_resize_images(path, new_path, cropx, cropy, img_size=256):
 
 if __name__ == '__main__':
     crop_and_resize_images(path='../data/train/', new_path='../data/train-resized-256/', cropx=1800, cropy=1800, img_size=256)
-    crop_and_resize_images(path='../data/test/', new_path='../data/test-resized-256/', cropx=1800, cropy=1800, img_size=256)
+    # crop_and_resize_images(path='../data/test/', new_path='../data/test-resized-256/', cropx=1800, cropy=1800, img_size=256)
