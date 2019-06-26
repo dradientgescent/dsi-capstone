@@ -1,3 +1,9 @@
+imbalanced-learn
+keras
+numpy
 pandas
+Pillow
 scipy
+scikit-image
 scikit-learn
+tensorflow
