@@ -52,7 +52,9 @@ def create_model(class_weights):
 	x = base_model.output
 	x = GlobalAveragePooling2D()(x)
 	# let's add a fully-connected layer
+	x = Dropout(0.3)(x)
 	x = Dense(1024, activation='relu')(x)
+	x = Dropout(0.3)(x)
 	x = Dense(256, activation='relu')(x)
 	# and a logistic layer -- let's say we have 200 classes
 	predictions = Dense(5, activation='softmax')(x)
@@ -89,7 +91,7 @@ class Training(object):
 
         train_generator = train_gen
         val_generator = val_gen
-        checkpointer = ModelCheckpoint(filepath='/media/bmi/poseidon/DiabeticR/models.{epoch:02d}_{val_loss:.3f}.hdf5', verbose=1, period = 5)
+        checkpointer = ModelCheckpoint(filepath='/media/bmi/poseidon/DiabeticR/Resnet101_{epoch:02d}_{val_loss:.3f}.hdf5', verbose=1, save_best_only = True)
         self.model.fit_generator(train_generator,
                                  epochs=self.nb_epoch, validation_data=val_generator,  verbose=1,
                                  callbacks=[checkpointer, reduce_lr], class_weight = class_weights)
