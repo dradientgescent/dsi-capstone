@@ -98,7 +98,7 @@ class Training(object):
 
 if __name__ == '__main__':
 
-	label_df = pd.read_csv('/media/parth/DATA/DiabeticR/trainLabels.csv')
+	label_df = pd.read_csv('/media/bmi/poseidon/DiabeticR/trainLabels.csv')
 
 	y_train = np.array(label_df['level'])
 
