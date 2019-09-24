@@ -52,7 +52,7 @@ class Training(object):
 
     def fit(self, train_gen, val_gen):
 
-    	reducl_lr = keras.callbacks.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10, verbose=0, mode='auto', min_delta=0.0001, cooldown=0, min_lr=0)
+    	reduce_lr = keras.callbacks.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10, verbose=0, mode='auto', min_delta=0.0001, cooldown=0, min_lr=0)
 
         train_generator = train_gen
         val_generator = val_gen
