@@ -6,6 +6,7 @@ import os
 import cv2
 import pandas as pd
 from keras.utils.np_utils import to_categorical
+import imgaug.augmenters as iaa
 
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
@@ -39,7 +40,7 @@ class DataGenerator(keras.utils.Sequence):
         # Initialization
         path = glob(self.path + '*.jpeg')
 
-        label_df = pd.read_csv('/media/bmi/poseidon/DiabeticR/trainLabels.csv')
+        label_df = pd.read_csv('/media/parth/DATA/DiabeticR/trainLabels.csv')
         
         X = []
         y = []
@@ -56,10 +57,5 @@ class DataGenerator(keras.utils.Sequence):
                 print(e)
 
         return np.array(X), np.array(y)
-
-
-if __name__ == '__main__':
-
-    D = DataGenerator('/media/bmi/poseidon/DiabeticR/train_resized/')
 
     
