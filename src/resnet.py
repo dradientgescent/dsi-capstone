@@ -52,7 +52,7 @@ class Training(object):
 
         train_generator = train_gen
         val_generator = val_gen
-        checkpointer = ModelCheckpoint(filepath='/home/parth/Interpretable_ML.{epoch:02d}_{val_loss:.3f}.hdf5', verbose=1, period = 5)
+        checkpointer = ModelCheckpoint(filepath='/media/bmi/poseidon/DiabeticR/models.{epoch:02d}_{val_loss:.3f}.hdf5', verbose=1, period = 5)
         self.model.fit_generator(train_generator,
                                  epochs=self.nb_epoch, validation_data=val_generator,  verbose=1,
                                  callbacks=[checkpointer])
@@ -64,8 +64,8 @@ if __name__ == '__main__':
 	# this is the model we will train
 	model = create_model()
 
-	train_generator = DataGenerator('/media/parth/DATA/DiabeticR/train_resized/', batch_size = 16)
-	val_generator = DataGenerator('/media/parth/DATA/DiabeticR/val/', batch_size = 16)
+	train_generator = DataGenerator('/media/bmi/poseidon/DiabeticR/train_resized/', batch_size = 16)
+	val_generator = DataGenerator('/media/bmi/poseidon/DiabeticR/val_resized/', batch_size = 16)
 
 	T = Training(model, nb_epoch = 100)
 

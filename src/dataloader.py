@@ -39,7 +39,7 @@ class DataGenerator(keras.utils.Sequence):
         # Initialization
         path = glob(self.path + '*.jpeg')
 
-        label_df = pd.read_csv('/media/parth/DATA/DiabeticR/trainLabels.csv')
+        label_df = pd.read_csv('/media/bmi/poseidon/DiabeticR/trainLabels.csv')
         
         X = []
         y = []
@@ -60,6 +60,6 @@ class DataGenerator(keras.utils.Sequence):
 
 if __name__ == '__main__':
 
-    D = DataGenerator('/media/parth/DATA/DiabeticR/train/')
+    D = DataGenerator('/media/bmi/poseidon/DiabeticR/train_resized/')
 
     
