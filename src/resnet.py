@@ -3,6 +3,7 @@ from keras_applications.resnet import ResNet101
 from keras.callbacks import  ModelCheckpoint
 from keras.preprocessing import image
 from keras.models import Model
+from keras.optimizers import SGD
 from keras.layers import Dense, GlobalAveragePooling2D
 from keras import backend as K
 from keras.models import model_from_json,load_model
@@ -25,7 +26,8 @@ def create_model():
 
 	model = Model(inputs=base_model.input, outputs=predictions)
 
-	model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
+	sgd = SGD(lr=0.01, momentum=0.9, decay=5e-6, nesterov=False)
+	model.compile(optimizer=sgd, loss='categorical_crossentropy')
 
 	return model
 
@@ -50,12 +52,14 @@ class Training(object):
 
     def fit(self, train_gen, val_gen):
 
+    	reducl_lr = keras.callbacks.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10, verbose=0, mode='auto', min_delta=0.0001, cooldown=0, min_lr=0)
+
         train_generator = train_gen
         val_generator = val_gen
         checkpointer = ModelCheckpoint(filepath='/media/bmi/poseidon/DiabeticR/models.{epoch:02d}_{val_loss:.3f}.hdf5', verbose=1, period = 5)
         self.model.fit_generator(train_generator,
                                  epochs=self.nb_epoch, validation_data=val_generator,  verbose=1,
-                                 callbacks=[checkpointer])
+                                 callbacks=[checkpointer, reduce_lr])
 
 
 
