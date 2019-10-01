@@ -12,6 +12,7 @@ from dataloader import DataGenerator
 import keras
 from keras.preprocessing.image import ImageDataGenerator
 from sklearn.utils import class_weight
+from sklearn.model_selection import train_test_split
 from keras import backend as K
 import pandas as pd
 import numpy as np
@@ -72,10 +73,11 @@ def create_model(class_weights):
 class Training(object):
     
 
-    def __init__(self, model, nb_epoch, load_model_resume_training=None):
+    def __init__(self, model, nb_epoch, batch_size, load_model_resume_training=None):
 
         
         self.nb_epoch = nb_epoch
+        self.batch_size = batch_size
 
 
         #loading model from path to resume previous training without recompiling the whole model
@@ -95,49 +97,66 @@ class Training(object):
         val_generator = val_gen
         checkpointer = ModelCheckpoint(filepath='/media/bmi/poseidon/DiabeticR/Resnet101_{epoch:02d}_{val_loss:.3f}.hdf5', verbose=1, save_best_only = True)
         self.model.fit_generator(train_generator,
-                                 epochs=self.nb_epoch, validation_data=val_generator,  verbose=1,
-                                 callbacks=[checkpointer, reduce_lr], class_weight = class_weights)
+                                 epochs=self.nb_epoch, validation_data=val_generator, 
+                                 steps_per_epoch = len(train_generator)//self.batch_size, validation_steps = len(val_generator)//self.batch_size,  
+                                 verbose=1, callbacks=[checkpointer, reduce_lr], class_weight = class_weights)
 
 
 
 if __name__ == '__main__':
 
-	label_df = pd.read_csv('/media/bmi/poseidon/DiabeticR/trainLabels.csv')
+	label_df = pd.read_csv('/media/parth/DATA/DiabeticR/trainLabels.csv')
+
+	label_df["image"] = label_df["image"].apply(lambda name : name + '.jpeg')
+
+	label_df["level"] = label_df["level"].apply(lambda label : str(label))
+
+	train, test = train_test_split(label_df, test_size=0.25, random_state=42)
+
+	print(train.shape, test.shape)
 
 	y_train = np.array(label_df['level'])
 
 	class_weights = class_weight.compute_class_weight('balanced',
-                                                 np.unique(y_train),
-                                                 y_train)
+	                                         np.unique(y_train),
+	                                         y_train)
 
 	class_weights = np.clip(class_weights, 0, 2)
-	
+
+	batch_size = 4
+
 	# this is the model we will train
 	model = create_model(class_weights)
 
-	train_generator = DataGenerator('/media/bmi/poseidon/DiabeticR/train_resized/', batch_size = 16)
-	val_generator = DataGenerator('/media/bmi/poseidon/DiabeticR/val_resized/', batch_size = 16)
+	#train_generator = DataGenerator('/media/parth/DATA/DiabeticR/train_resized/', batch_size = 16)
+	#val_generator = DataGenerator('/media/parth/DATA/DiabeticR/val_resized/', batch_size = 16)
 
-	# train_gen = ImageDataGenerator(
-	#     rotation_range=10,
-	#     width_shift_range=10,
-	#     height_shift_range=10,
-	#     horizontal_flip=True)
+	train_gen = ImageDataGenerator(
+		rotation_range=10,
+		width_shift_range=10,
+		height_shift_range=10,
+		horizontal_flip=True)
 
-	# val_gen = ImageDataGenerator()
+	val_gen = ImageDataGenerator()
 
-	# train_generator = train_gen.flow_from_directory(
- #        '/media/parth/DATA/DiabeticR/train_resized',
- #        target_size=(256, 256),
- #        batch_size=16,
- #        class_mode='categorical')
+	train_generator = train_gen.flow_from_dataframe(
+			dataframe=train,
+		directory='/media/parth/DATA/DiabeticR/train',
+		x_col="image",
+		y_col="level",
+		target_size=(512, 512),
+		batch_size=batch_size,
+		class_mode='categorical')
 
-	# val_generator = val_gen.flow_from_directory(
- #        '/media/parth/DATA/DiabeticR/train_resized',
- #        target_size=(256, 256),
- #        batch_size=16,
- #        class_mode='categorical')
 
-	T = Training(model, nb_epoch = 100)
+	val_generator = train_gen.flow_from_dataframe(
+			dataframe=test,
+		directory='/media/parth/DATA/DiabeticR/train',
+		x_col="image",
+		y_col="level",
+		target_size=(512, 512),
+		batch_size=batch_size,
+		class_mode='categorical')
 
+	T = Training(model, nb_epoch = 100, batch_size=batch_size)
 	T.fit(train_generator, val_generator)
