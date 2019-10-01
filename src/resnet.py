@@ -1,10 +1,11 @@
 from keras_applications.inception_v3 import InceptionV3
+from keras.applications.densenet import DenseNet121
 from keras_applications.resnet import ResNet101
 from keras.callbacks import  ModelCheckpoint
 from keras.preprocessing import image
 from keras.models import Model
-from keras.optimizers import SGD
-from keras.layers import Dense, GlobalAveragePooling2D
+from keras.optimizers import SGD, Adam
+from keras.layers import Dense, GlobalAveragePooling2D, Dropout
 from keras import backend as K
 from keras.models import model_from_json,load_model
 from dataloader import DataGenerator
@@ -46,15 +47,15 @@ def weighted_categorical_crossentropy(weights):
 def create_model(class_weights):
 
 	# create the base pre-trained model
-	base_model = ResNet101(weights='imagenet', include_top=False, backend = keras.backend, layers = keras.layers, models = keras.models, utils = keras.utils)
+	base_model = DenseNet121(weights=None, include_top=False, backend = keras.backend, layers = keras.layers, models = keras.models, utils = keras.utils)
 
 	# add a global spatial average pooling layer
 	x = base_model.output
 	x = GlobalAveragePooling2D()(x)
 	# let's add a fully-connected layer
-	x = Dropout(0.3)(x)
+	# x = Dropout(0)(x)
 	x = Dense(1024, activation='relu')(x)
-	x = Dropout(0.3)(x)
+	x = Dropout(0.15)(x)
 	x = Dense(256, activation='relu')(x)
 	# and a logistic layer -- let's say we have 200 classes
 	predictions = Dense(5, activation='softmax')(x)
@@ -62,7 +63,8 @@ def create_model(class_weights):
 	model = Model(inputs=base_model.input, outputs=predictions)
 
 	sgd = SGD(lr=0.01, momentum=0.9, decay=5e-6, nesterov=False)
-	model.compile(optimizer=sgd, loss=weighted_categorical_crossentropy(class_weights))
+	adam = Adam(lr=1e-3)
+	model.compile(optimizer=adam, loss=weighted_categorical_crossentropy(class_weights), metrics = ['accuracy'])
 
 	return model
 
@@ -108,7 +110,7 @@ if __name__ == '__main__':
                                                  np.unique(y_train),
                                                  y_train)
 
-	class_weights = np.clip(class_weights, 0, 3)
+	class_weights = np.clip(class_weights, 0, 2)
 	
 	# this is the model we will train
 	model = create_model(class_weights)
