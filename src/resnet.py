@@ -16,6 +16,8 @@ from sklearn.model_selection import train_test_split
 from keras import backend as K
 import pandas as pd
 import numpy as np
+import cv2
+import matplotlib.pyplot as plt
 
 def weighted_categorical_crossentropy(weights):
     """
@@ -48,7 +50,7 @@ def weighted_categorical_crossentropy(weights):
 def create_model(class_weights):
 
 	# create the base pre-trained model
-	base_model = DenseNet121(weights=None, include_top=False, backend = keras.backend, layers = keras.layers, models = keras.models, utils = keras.utils)
+	base_model = ResNet101(weights=None, include_top=False, backend = keras.backend, layers = keras.layers, models = keras.models, utils = keras.utils)
 
 	# add a global spatial average pooling layer
 	x = base_model.output
@@ -56,7 +58,7 @@ def create_model(class_weights):
 	# let's add a fully-connected layer
 	# x = Dropout(0)(x)
 	x = Dense(1024, activation='relu')(x)
-	x = Dropout(0.15)(x)
+	#x = Dropout(0.15)(x)
 	x = Dense(256, activation='relu')(x)
 	# and a logistic layer -- let's say we have 200 classes
 	predictions = Dense(5, activation='softmax')(x)
@@ -73,16 +75,17 @@ def create_model(class_weights):
 class Training(object):
     
 
-    def __init__(self, model, nb_epoch, batch_size, load_model_resume_training=None):
+    def __init__(self, model, nb_epoch, batch_size, savepath, load_model_resume_training=None, weight_path=None):
 
         
         self.nb_epoch = nb_epoch
         self.batch_size = batch_size
-
+        self.savepath = savepath
 
         #loading model from path to resume previous training without recompiling the whole model
         if load_model_resume_training is not None:
-            self.model =load_model(load_model_resume_training)
+            self.model = model        	
+            self.model.load_weights(weight_path)
             print("pre-trained model loaded!")
         else:
             self.model = model
@@ -91,21 +94,21 @@ class Training(object):
 
     def fit(self, train_gen, val_gen):
 		
-        reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=5, verbose=0, mode='auto', min_delta=0.0001, cooldown=0, min_lr=0)
+        reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=3, verbose=0, mode='auto', min_delta=0.0001, cooldown=0, min_lr=0)
 
         train_generator = train_gen
         val_generator = val_gen
-        checkpointer = ModelCheckpoint(filepath='/media/bmi/poseidon/DiabeticR/Resnet101_{epoch:02d}_{val_loss:.3f}.hdf5', verbose=1, save_best_only = True)
+        checkpointer = ModelCheckpoint(filepath=self.savepath, verbose=1, save_best_only = True)
         self.model.fit_generator(train_generator,
                                  epochs=self.nb_epoch, validation_data=val_generator, 
-                                 steps_per_epoch = len(train_generator)//self.batch_size, validation_steps = len(val_generator)//self.batch_size,  
-                                 verbose=1, callbacks=[checkpointer, reduce_lr], class_weight = class_weights)
+                                 steps_per_epoch = len(train_generator), validation_steps = len(val_generator),  
+                                 verbose=1, callbacks=[checkpointer, reduce_lr])
 
 
 
 if __name__ == '__main__':
 
-	label_df = pd.read_csv('/media/parth/DATA/DiabeticR/trainLabels.csv')
+	label_df = pd.read_csv('/media/bmi/poseidon/DiabeticR/trainLabels.csv')
 
 	label_df["image"] = label_df["image"].apply(lambda name : name + '.jpeg')
 
@@ -117,46 +120,102 @@ if __name__ == '__main__':
 
 	y_train = np.array(label_df['level'])
 
-	class_weights = class_weight.compute_class_weight('balanced',
-	                                         np.unique(y_train),
-	                                         y_train)
+	sample_array = []
 
-	class_weights = np.clip(class_weights, 0, 2)
+	# for i in range(5000):
+	# 	try:
+	# 		sample_array.append(cv2.resize(cv2.imread('/media/bmi/poseidon/DiabeticR/train_cropped/' 
+	# 			+ train["image"].iloc[i]), (512,512)))
+	# 	except Exception as e:
+	# 		print(e)
 
-	batch_size = 4
+	# sample_array = np.array(sample_array)
 
-	# this is the model we will train
-	model = create_model(class_weights)
+	# print(sample_array.shape)
 
+	
+
+	batch_size = 2
+
+	
 	#train_generator = DataGenerator('/media/parth/DATA/DiabeticR/train_resized/', batch_size = 16)
 	#val_generator = DataGenerator('/media/parth/DATA/DiabeticR/val_resized/', batch_size = 16)
 
 	train_gen = ImageDataGenerator(
+		samplewise_center=True,
+		samplewise_std_normalization=True,
 		rotation_range=10,
 		width_shift_range=10,
 		height_shift_range=10,
-		horizontal_flip=True)
+		horizontal_flip=True
+		)
 
-	val_gen = ImageDataGenerator()
+	val_gen = ImageDataGenerator(
+		samplewise_center=True,
+		samplewise_std_normalization=True
+		)
+
+	# train_gen.fit(sample_array)
+	# val_gen.fit(sample_array)
 
 	train_generator = train_gen.flow_from_dataframe(
 			dataframe=train,
-		directory='/media/parth/DATA/DiabeticR/train',
+		directory='/media/bmi/poseidon/DiabeticR/train_cropped',
 		x_col="image",
 		y_col="level",
 		target_size=(512, 512),
 		batch_size=batch_size,
-		class_mode='categorical')
+		class_mode='categorical'
+		)
 
 
 	val_generator = train_gen.flow_from_dataframe(
 			dataframe=test,
-		directory='/media/parth/DATA/DiabeticR/train',
+		directory='/media/bmi/poseidon/DiabeticR/train_cropped',
 		x_col="image",
 		y_col="level",
 		target_size=(512, 512),
 		batch_size=batch_size,
-		class_mode='categorical')
+		class_mode='categorical'
+		)
 
-	T = Training(model, nb_epoch = 100, batch_size=batch_size)
+	def plotImages(images_arr):
+	    fig, axes = plt.subplots(1, 5, figsize=(20,20))
+	    axes = axes.flatten()
+	    for img, ax in zip( images_arr, axes):
+	        ax.imshow(img/np.max(img))
+	    plt.tight_layout()
+	    plt.show()
+	    
+	    
+	augmented_images = [train_generator[0][0][0] for i in range(5)]
+	print(augmented_images[0], np.ptp(augmented_images[0]//255.))
+	#plotImages(augmented_images)
+
+	# # this is the model we will train
+	model = create_model(np.ones(5))
+
+	T = Training(model, nb_epoch = 1, batch_size=batch_size, savepath='/media/bmi/poseidon/DiabeticR/Resnet101.hdf5')
+
+	T.fit(train_generator, val_generator)
+
+	class_weights = class_weight.compute_class_weight('balanced',
+	                                         np.unique(y_train),
+	                                         y_train)
+
+	class_weights_clipped_1 = np.clip(class_weights, 0, 0.8)
+
+	class_weights_clipped_2 = np.clip(class_weights, 0, 2)
+
+	# this is the model we will train
+	model = create_model(class_weights_clipped_1)
+
+	T = Training(model, nb_epoch = 10, batch_size=batch_size, load_model_resume_training=True,
+	 weight_path='/media/bmi/poseidon/DiabeticR/Resnet101.hdf5', savepath = '/media/bmi/poseidon/DiabeticR/Resnet101_P2.hdf5')
+	T.fit(train_generator, val_generator)
+
+	model = create_model(class_weights_clipped_2)
+
+	T = Training(model, nb_epoch = 5, batch_size=batch_size, load_model_resume_training=True,
+	 weight_path='/media/bmi/poseidon/DiabeticR/Resnet101_P2.hdf5', savepath = '/media/bmi/poseidon/DiabeticR/Resnet101_P3.hdf5')
 	T.fit(train_generator, val_generator)
