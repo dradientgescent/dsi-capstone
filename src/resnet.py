@@ -108,7 +108,7 @@ class Training(object):
 
 if __name__ == '__main__':
 
-	label_df = pd.read_csv('/media/bmi/poseidon/DiabeticR/trainLabels.csv')
+	label_df = pd.read_csv('/media/parth/DATA/DiabeticR/trainLabels.csv')
 
 	label_df["image"] = label_df["image"].apply(lambda name : name + '.jpeg')
 
@@ -144,7 +144,7 @@ if __name__ == '__main__':
 	train_gen = ImageDataGenerator(
 		samplewise_center=True,
 		samplewise_std_normalization=True,
-		rotation_range=10,
+		rotation_range=2,
 		width_shift_range=10,
 		height_shift_range=10,
 		horizontal_flip=True
@@ -160,7 +160,7 @@ if __name__ == '__main__':
 
 	train_generator = train_gen.flow_from_dataframe(
 			dataframe=train,
-		directory='/media/bmi/poseidon/DiabeticR/train_cropped',
+		directory='/media/parth/DATA/DiabeticR/train_resized',
 		x_col="image",
 		y_col="level",
 		target_size=(512, 512),
@@ -171,7 +171,7 @@ if __name__ == '__main__':
 
 	val_generator = train_gen.flow_from_dataframe(
 			dataframe=test,
-		directory='/media/bmi/poseidon/DiabeticR/train_cropped',
+		directory='/media/parth/DATA/DiabeticR/train_resized',
 		x_col="image",
 		y_col="level",
 		target_size=(512, 512),
@@ -183,39 +183,40 @@ if __name__ == '__main__':
 	    fig, axes = plt.subplots(1, 5, figsize=(20,20))
 	    axes = axes.flatten()
 	    for img, ax in zip( images_arr, axes):
-	        ax.imshow(img/np.max(img))
+	        ax.imshow((img-np.min(img))/(np.max(img)-np.min(img)))
 	    plt.tight_layout()
 	    plt.show()
 	    
 	    
 	augmented_images = [train_generator[0][0][0] for i in range(5)]
-	print(augmented_images[0], np.ptp(augmented_images[0]//255.))
-	#plotImages(augmented_images)
+	img = augmented_images[0]
+	print(augmented_images[0], np.ptp((img-np.min(img))/(np.max(img)-np.min(img))))
+	plotImages(augmented_images)
 
 	# # this is the model we will train
-	model = create_model(np.ones(5))
+	# model = create_model(np.ones(5))
 
-	T = Training(model, nb_epoch = 1, batch_size=batch_size, savepath='/media/bmi/poseidon/DiabeticR/Resnet101.hdf5')
+	# T = Training(model, nb_epoch = 1, batch_size=batch_size, savepath='/media/bmi/poseidon/DiabeticR/Resnet101.hdf5')
 
-	T.fit(train_generator, val_generator)
+	# T.fit(train_generator, val_generator)
 
-	class_weights = class_weight.compute_class_weight('balanced',
-	                                         np.unique(y_train),
-	                                         y_train)
+	# class_weights = class_weight.compute_class_weight('balanced',
+	#                                          np.unique(y_train),
+	#                                          y_train)
 
-	class_weights_clipped_1 = np.clip(class_weights, 0, 0.8)
+	# class_weights_clipped_1 = np.clip(class_weights, 0, 0.8)
 
-	class_weights_clipped_2 = np.clip(class_weights, 0, 2)
+	# class_weights_clipped_2 = np.clip(class_weights, 0, 2)
 
-	# this is the model we will train
-	model = create_model(class_weights_clipped_1)
+	# # this is the model we will train
+	# model = create_model(class_weights_clipped_1)
 
-	T = Training(model, nb_epoch = 10, batch_size=batch_size, load_model_resume_training=True,
-	 weight_path='/media/bmi/poseidon/DiabeticR/Resnet101.hdf5', savepath = '/media/bmi/poseidon/DiabeticR/Resnet101_P2.hdf5')
-	T.fit(train_generator, val_generator)
+	# T = Training(model, nb_epoch = 10, batch_size=batch_size, load_model_resume_training=True,
+	#  weight_path='/media/bmi/poseidon/DiabeticR/Resnet101.hdf5', savepath = '/media/bmi/poseidon/DiabeticR/Resnet101_P2.hdf5')
+	# T.fit(train_generator, val_generator)
 
-	model = create_model(class_weights_clipped_2)
+	# model = create_model(class_weights_clipped_2)
 
-	T = Training(model, nb_epoch = 5, batch_size=batch_size, load_model_resume_training=True,
-	 weight_path='/media/bmi/poseidon/DiabeticR/Resnet101_P2.hdf5', savepath = '/media/bmi/poseidon/DiabeticR/Resnet101_P3.hdf5')
-	T.fit(train_generator, val_generator)
+	# T = Training(model, nb_epoch = 5, batch_size=batch_size, load_model_resume_training=True,
+	#  weight_path='/media/bmi/poseidon/DiabeticR/Resnet101_P2.hdf5', savepath = '/media/bmi/poseidon/DiabeticR/Resnet101_P3.hdf5')
+	# T.fit(train_generator, val_generator)
