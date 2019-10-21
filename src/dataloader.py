@@ -7,55 +7,65 @@ import cv2
 import pandas as pd
 from keras.utils.np_utils import to_categorical
 import imgaug.augmenters as iaa
+from enet_preprocess import *
 
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, path, batch_size = 16, dim = (128, 128), channels = 4):
+    def __init__(self, path, batch_size = 8, dataframe = None, shuffle=True):
         'Initialization'
         self.path = path
         self.batch_size = batch_size
-        self.dim = dim
-        self.n_channels = channels
+        self.dataframe = dataframe
+        self.list_IDs = self.dataframe['id_code']
+        self.shuffle = shuffle
+        self.on_epoch_end()
 
 
     def __len__(self):
         'Denotes the number of batches per epoch'
-        return int(np.floor(len(glob(self.path + '*.jpeg')) / self.batch_size))
+        return int(np.floor(len(glob(self.path + '*.png')) / self.batch_size))
 
     def __getitem__(self, index):
         'Generate one batch of data'
         # Generate indexes of the batch
+        indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]
+
+        # Find list of IDs
+        list_IDs_temp = [self.list_IDs.iloc[k] for k in indexes]
+        print(list_IDs_temp)
 
         # Generate data
-        #print(indexes_i, indexes_j)
-
-        # Generate data
-        X, y = self.__data_generation()
+        X, y = self.__data_generation(list_IDs_temp)
+        print(X,y)
 
         return X, y
 
-    def __data_generation(self):
+    def on_epoch_end(self):
+        'Updates indexes after each epoch'
+        self.indexes = np.arange(len(self.list_IDs))
+        if self.shuffle == True:
+            np.random.shuffle(self.indexes)
+
+
+    def __data_generation(self, list_IDs_temp):
         'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
 
-        # Initialization
-        path = glob(self.path + '*.jpeg')
-
-        label_df = pd.read_csv('/media/bmi/poseidon/DiabeticR/trainLabels.csv')
+        #print(label_df.shape)
         
         X = []
         y = []
         # Generate data
-        while(len(X)) != self.batch_size:
-            index = random.randint(0, len(path))
-            #print(os.path.basename(path[index]).split('.')[0])
-            # Store sample
-            try:
-                X.append(cv2.imread(path[index]))
-                # Store class              
-                y.append(to_categorical(label_df.iloc[label_df.index[label_df['image'] == os.path.basename(path[index]).split('.')[0]], 1].item(), num_classes=5))
-            except Exception as e:
-                print(e)
+        for i, ID in enumerate(list_IDs_temp):
 
+            img = cv2.cvtColor(cv2.imread(self.path + '/{}.png'.format(ID)), cv2.COLOR_BGR2RGB)
+
+            img = preprocess_image(img)
+            X.append(img)
+            # Store class              
+            y.append(int(self.dataframe.loc[self.dataframe['id_code'] == ID]['diagnosis']))
+            # except Exception as e:
+            #     print(e)
+        #print(X, y)
         return np.array(X), np.array(y)
 
     
