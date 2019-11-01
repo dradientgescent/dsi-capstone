@@ -40,7 +40,7 @@ def crop_image_from_gray(img, tol=7):
             img = np.stack([img1,img2,img3],axis=-1)
         return img
 
-def preprocess_image(image, sigmaX=10):
+def preprocess_image(image, sigmaX=10, resize=(256,256)):
     """
     The whole preprocessing pipeline:
     1. Read in image
@@ -50,7 +50,7 @@ def preprocess_image(image, sigmaX=10):
     """
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     #image = crop_image_from_gray(image)
-    #image = cv2.resize(image, (IMG_WIDTH, IMG_HEIGHT))
+    image = cv2.resize(image, resize)
     image = cv2.addWeighted (image,4, cv2.GaussianBlur(image, (0,0) ,sigmaX), -4, 128)
     return image
 

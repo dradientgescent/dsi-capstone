@@ -11,19 +11,20 @@ from enet_preprocess import *
 
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, path, batch_size = 8, dataframe = None, shuffle=True):
+    def __init__(self, path, batch_size = 4, dataframe = None, shuffle=True, dim = (256,256)):
         'Initialization'
         self.path = path
         self.batch_size = batch_size
         self.dataframe = dataframe
         self.list_IDs = self.dataframe['id_code']
         self.shuffle = shuffle
+        self.dim = dim
         self.on_epoch_end()
 
 
     def __len__(self):
         'Denotes the number of batches per epoch'
-        return int(np.floor(len(glob(self.path + '*.png')) / self.batch_size))
+        return int(np.floor(len(self.dataframe) / self.batch_size))
 
     def __getitem__(self, index):
         'Generate one batch of data'
@@ -32,11 +33,9 @@ class DataGenerator(keras.utils.Sequence):
 
         # Find list of IDs
         list_IDs_temp = [self.list_IDs.iloc[k] for k in indexes]
-        print(list_IDs_temp)
 
         # Generate data
         X, y = self.__data_generation(list_IDs_temp)
-        print(X,y)
 
         return X, y
 
@@ -59,10 +58,10 @@ class DataGenerator(keras.utils.Sequence):
 
             img = cv2.cvtColor(cv2.imread(self.path + '/{}.png'.format(ID)), cv2.COLOR_BGR2RGB)
 
-            img = preprocess_image(img)
+            img = preprocess_image(img, resize = self.dim)
             X.append(img)
             # Store class              
-            y.append(int(self.dataframe.loc[self.dataframe['id_code'] == ID]['diagnosis']))
+            y.append(np.eye(5)[int(self.dataframe.loc[self.dataframe['id_code'] == ID]['diagnosis'])])
             # except Exception as e:
             #     print(e)
         #print(X, y)
