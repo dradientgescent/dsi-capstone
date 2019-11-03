@@ -1,7 +1,7 @@
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import cohen_kappa_score, accuracy_score
 from keras import layers
-from keras.layers import GlobalAveragePooling2D, Dense, Dropout, ELU, Softmax
+from keras.layers import GlobalAveragePooling2D, Dense, Dropout, ELU, Softmax, Conv2D, concatenate, Input
 from keras.applications import DenseNet121
 from keras.callbacks import Callback, ModelCheckpoint, TensorBoard
 from keras.preprocessing.image import ImageDataGenerator
@@ -26,11 +26,12 @@ from losses import categorical_focal_loss
 
 
 
-def create_model(dim = (256, 256), weights = np.ones(5)):
+def create_model(dim = (256, 256), weights = np.ones(5), split = False):
 
 	f_loss = categorical_focal_loss(alpha = weights)
 
 	IMG_WIDTH, IMG_HEIGHT, CHANNELS = *dim, 3
+	input_shape = (IMG_WIDTH, IMG_HEIGHT, CHANNELS)
 	elu = keras.layers.ELU(alpha=1.0)
 
 	# create the base pre-trained model
@@ -38,37 +39,56 @@ def create_model(dim = (256, 256), weights = np.ones(5)):
 	effnet = efn.EfficientNetB4(weights=None,
 	                        include_top=False,
 	                        input_shape=(IMG_WIDTH, IMG_HEIGHT, CHANNELS))
-	effnet.load_weights('/media/brats/mirlproject2/aptos_2019/efficientnet-b4_imagenet_1000_notop.h5')
+	effnet.load_weights('/media/parth/DATA/datasets/aptos_2019/efficientnet-b4_imagenet_1000_notop.h5')
 
 	# Replace all Batch Normalization layers by Group Normalization layers
 	for i, layer in enumerate(effnet.layers):
 	    if "batch_normalization" in layer.name:
 	        effnet.layers[i] = GroupNormalization(groups=32, axis=-1, epsilon=0.00001)
 
-	x = effnet.output
-	x = GlobalAveragePooling2D()(x)
-	x = Dense(256)(x)
-	x = Dropout(0.25)(x)
-	x = Dense(5)(x)
-	predictions = Softmax()(x)
+	if split == True:
 
-	model = Model(inputs=effnet.input, outputs=predictions)
+		input1 = Input(input_shape)
+		input2 = Input(input_shape)
+		input3 = Input(input_shape)
+		input4 = Input(input_shape)
+		conv1 = Conv2D(16, 3, padding = 'same')(input1)
+		conv2 = Conv2D(16, 3, padding = 'same')(input2)
+		conv3 = Conv2D(16, 3, padding = 'same')(input3)
+		conv4 = Conv2D(16, 3, padding = 'same')(input4) 
+		concat = concatenate([conv1, conv2, conv3, conv4])
+		enet_input = Conv2D(3, 3, padding = 'same')(concat)
+		x = effnet(enet_input)
+		x = GlobalAveragePooling2D()(x)
+		x = Dense(256)(x)
+		x = Dropout(0.25)(x)
+		x = Dense(5)(x)
+		predictions = Softmax()(x)
 
-	# model = Sequential()
-	# model.add(effnet)
-	# model.add(GlobalAveragePooling2D())
-	# model.add(Dense(256))
-	# model.add(Dropout(0.25))
-	# model.add(Dense(5))
-	# model.add(Softmax())
-	# model.add(ELU(alpha=1.0))
-	# model.add(Dense(1, activation="linear"))
-	model.compile(loss=f_loss,
-	              optimizer=RAdam(lr=0.00005), 
-	              metrics=[f_loss, 'acc'])
-	print(model.summary())
+		model = Model(inputs=[input1, input2, input3, input4], outputs=predictions)
+		model.compile(loss=f_loss,
+		              optimizer=RAdam(learning_rate=0.00005), 
+		              metrics=[f_loss, 'acc'])
+		print(model.summary())
 
-	return model
+		return model
+
+	else:
+
+		x = effnet.output
+		x = GlobalAveragePooling2D()(x)
+		x = Dense(256)(x)
+		x = Dropout(0.25)(x)
+		x = Dense(5)(x)
+		predictions = Softmax()(x)
+
+		model = Model(inputs=effnet.input, outputs=predictions)
+		model.compile(loss=f_loss,
+		              optimizer=RAdam(lr=0.00005), 
+		              metrics=[f_loss, 'acc'])
+		print(model.summary())
+
+		return model
 
 def get_preds_and_labels(model, generator):
     """
@@ -93,7 +113,7 @@ class Metrics(Callback):
 
 		self.val_generator = val_generator
 
-		self.SAVED_MODEL_NAME = '/home/brats/parth/dsi-capstone/saved_models/effnet_functional.h5'
+		self.SAVED_MODEL_NAME = '/media/parth/DATA/datasets/aptos_results/saved_models/effnet_functional.h5'
 
 	def on_train_begin(self, logs={}):
 	    """
@@ -116,7 +136,7 @@ class Metrics(Callback):
 	    if _val_kappa == max(self.val_kappas):
 	        print("Validation Kappa has improved. Saving model.")
 	        self.model.save(self.SAVED_MODEL_NAME)
-	        self.model.save_weights("/home/brats/parth/dsi-capstone/saved_models/effnet_weights_functional.h5")
+	        self.model.save_weights("/media/parth/DATA/datasets/aptos_results/saved_models/effnet_weights_functional.h5")
 	    return
 
 
@@ -168,7 +188,7 @@ class Training(object):
 
 if __name__ == '__main__':
 
-	label_df = pd.read_csv('/media/brats/mirlproject2/aptos_2019/train.csv')
+	label_df = pd.read_csv('/media/parth/DATA/datasets/aptos_2019/train.csv')
 
 	#label_df["id_code"] = label_df["id_code"].apply(lambda name : name + '.png')
 
@@ -186,20 +206,20 @@ if __name__ == '__main__':
 	sample_array = []	
 
 	BATCH_SIZE = 8
-	IMG_WIDTH, IMG_HEIGHT = 460, 460
-	TRAIN_IMG_PATH = '/media/brats/mirlproject2/aptos_2019/train_cropped'
+	IMG_WIDTH, IMG_HEIGHT = 1024, 1024
+	TRAIN_IMG_PATH = '/media/parth/DATA/datasets/aptos_2019/train_cropped'
 	print('---------------------Initialized Training---------------------\n')
 	# Add Image augmentation to our generator
-	train_datagen = DataGenerator(TRAIN_IMG_PATH, batch_size = BATCH_SIZE, dataframe = train, dim = (IMG_HEIGHT, IMG_WIDTH))
+	train_datagen = DataGenerator(TRAIN_IMG_PATH, batch_size = BATCH_SIZE, dataframe = train, dim = (IMG_HEIGHT, IMG_WIDTH), split = True)
 	print('Found {} Train Images'.format(train_datagen.__len__()*BATCH_SIZE))
-	val_datagen = DataGenerator(TRAIN_IMG_PATH, batch_size = BATCH_SIZE, dataframe = test, dim = (IMG_HEIGHT, IMG_WIDTH))
+	val_datagen = DataGenerator(TRAIN_IMG_PATH, batch_size = BATCH_SIZE, dataframe = test, dim = (IMG_HEIGHT, IMG_WIDTH), split = True)
 	print('Found {} Val Images\n'.format(val_datagen.__len__()*BATCH_SIZE))
 	# print('\n\n')
 	# print(len(train_datagen))
-	model = create_model((IMG_HEIGHT, IMG_WIDTH), class_weights)
+	model = create_model((IMG_HEIGHT//2, IMG_WIDTH//2), class_weights, split=True)
 
 	T = Training(model, nb_epoch = 100, batch_size = BATCH_SIZE, 
-		savepath = '/home/brats/parth/dsi-capstone/saved_models', 
+		savepath = '/media/parth/DATA/datasets/aptos_results/saved_models', 
 		load_model_resume_training=None, weight_path=None)
 
 	T.fit(train_datagen, val_datagen)

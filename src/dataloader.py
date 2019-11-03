@@ -11,7 +11,7 @@ from enet_preprocess import *
 
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, path, batch_size = 4, dataframe = None, shuffle=True, dim = (256,256)):
+    def __init__(self, path, batch_size = 4, dataframe = None, shuffle=True, dim = (256,256), split = False):
         'Initialization'
         self.path = path
         self.batch_size = batch_size
@@ -20,6 +20,8 @@ class DataGenerator(keras.utils.Sequence):
         self.shuffle = shuffle
         self.dim = dim
         self.on_epoch_end()
+        self.split = split
+        self.img_width_split = self.dim[0]//2
 
 
     def __len__(self):
@@ -65,6 +67,12 @@ class DataGenerator(keras.utils.Sequence):
             # except Exception as e:
             #     print(e)
         #print(X, y)
-        return np.array(X), np.array(y)
+        X, y = np.array(X), np.array(y)
+
+        if self.split == True:
+            return([X[:, 0:self.img_width_split, 0:self.img_width_split, :], X[:, self.img_width_split:self.img_width_split*2, 0:self.img_width_split, :], 
+                X[:, 0:self.img_width_split, self.img_width_split:self.img_width_split*2, :], X[:, self.img_width_split:self.img_width_split*2, self.img_width_split:self.img_width_split*2, :]], y)
+        else:
+            return np.array(X), np.array(y)
 
     
